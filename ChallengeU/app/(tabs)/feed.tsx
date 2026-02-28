@@ -68,7 +68,11 @@ const DEMO_WORKOUT: Workout = {
 
 export default function FeedScreen() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [demoComments, setDemoComments] = useState<Comment[]>(DEMO_WORKOUT.comments || []);
+  const [demoCommentsByPostId, setDemoCommentsByPostId] = useState<Record<string, Comment[]>>({
+    [DEMO_WORKOUT._id]: DEMO_WORKOUT.comments || [],
+    [DEMO_WORKOUT_LUCY._id]: DEMO_WORKOUT_LUCY.comments || [],
+    [DEMO_WORKOUT_SANDI._id]: DEMO_WORKOUT_SANDI.comments || [],
+  });
   type WorkoutState = { likes: number; liked: boolean };
   const [feedState, setFeedState] = useState<Record<string, WorkoutState>>({});
   const [showModal, setShowModal] = useState(false);
@@ -82,7 +86,7 @@ export default function FeedScreen() {
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [commentUsername, setCommentUsername] = useState('');
-  const [commentLikes, setCommentLikes] = useState<Record<string, Record<string, boolean>>>({});
+  const [commentLikes, setCommentLikes] = useState<Record<string, boolean>>({});
   const backgroundColor = useThemeColor({}, 'background');
   const colorScheme = useColorScheme() ?? 'light';
   const headerBackgroundColor = { light: '#f4f3ef', dark: '#1D3D47' };
@@ -262,9 +266,12 @@ export default function FeedScreen() {
       likes: 0,
     };
 
-    // Handle demo post separately
-    if (selectedWorkoutId === 'demo-herbie') {
-      setDemoComments([...demoComments, newComment]);
+    // Handle demo posts separately
+    if (selectedWorkoutId in demoCommentsByPostId) {
+      setDemoCommentsByPostId((prev) => ({
+        ...prev,
+        [selectedWorkoutId]: [...(prev[selectedWorkoutId] || []), newComment],
+      }));
     } else {
       // Add comment to regular workout
       setWorkouts((prev) =>
@@ -299,15 +306,16 @@ export default function FeedScreen() {
     const key = `${workoutId}-${commentId}`;
     const isLiked = commentLikes[key];
 
-    // Handle demo post separately
-    if (workoutId === 'demo-herbie') {
-      setDemoComments((prev) =>
-        prev.map((c) =>
+    // Handle demo posts separately
+    if (workoutId in demoCommentsByPostId) {
+      setDemoCommentsByPostId((prev) => ({
+        ...prev,
+        [workoutId]: (prev[workoutId] || []).map((c) =>
           c._id === commentId
             ? { ...c, likes: isLiked ? c.likes - 1 : c.likes + 1 }
             : c
-        )
-      );
+        ),
+      }));
     } else {
       // Update the workout with the new comment likes
       setWorkouts((prev) =>
@@ -338,8 +346,10 @@ export default function FeedScreen() {
     const itemState = feedState[item._id] || { likes: item.likes, liked: false };
     const likes = itemState.likes;
     const isCelebrated = itemState.liked;
-    // For demo post, use demoComments state; for others, use item comments
-    const comments = item._id === 'demo-herbie' ? demoComments : item.comments || [];
+    // For demo posts, use local demo comment state; for others, use item comments
+    const comments = item._id in demoCommentsByPostId
+      ? demoCommentsByPostId[item._id] || []
+      : item.comments || [];
     return (
       <ThemedView style={styles.item}>
         {item.imageUrl && (
@@ -491,9 +501,9 @@ export default function FeedScreen() {
 
             <ScrollView style={styles.commentsList}>
               {selectedWorkoutId && (() => {
-                // Get comments from either demo post or regular post
-                const comments = selectedWorkoutId === 'demo-herbie' 
-                  ? demoComments 
+                // Get comments from either demo posts or regular posts
+                const comments = selectedWorkoutId in demoCommentsByPostId
+                  ? demoCommentsByPostId[selectedWorkoutId] || []
                   : workouts.find(w => w._id === selectedWorkoutId)?.comments || [];
                 
                 return comments.map((comment) => {
