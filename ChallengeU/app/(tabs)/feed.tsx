@@ -59,6 +59,8 @@ export default function FeedScreen() {
       data.forEach((w) => {
         state[w._id] = { likes: w.likes, liked: false };
       });
+      // include demo post state as well
+      state[DEMO_WORKOUT._id] = { likes: DEMO_WORKOUT.likes, liked: false };
       setFeedState(state);
     } catch (e) {
       // ignore network errors for now
@@ -114,7 +116,17 @@ export default function FeedScreen() {
   };
 
   const celebrateWorkout = async (workoutId: string) => {
-    const state = feedState[workoutId] || { likes: 0, liked: false };
+    // determine existing state, falling back to known workout or demo count
+    const existing = feedState[workoutId];
+    let state: WorkoutState;
+    if (existing) {
+      state = existing;
+    } else if (workoutId === DEMO_WORKOUT._id) {
+      state = { likes: DEMO_WORKOUT.likes, liked: false };
+    } else {
+      const found = workouts.find((w) => w._id === workoutId);
+      state = { likes: found ? found.likes : 0, liked: false };
+    }
     const isCelebrated = state.liked;
     // adjust count for optimistic UI
     const newState: WorkoutState = {
