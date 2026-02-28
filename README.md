@@ -1,16 +1,18 @@
-# SixSevenSystem - Expo iOS Mobile App
-Raikes Hacks 2026
+# ChallengeU - University of Nebraska Lincoln
+*Raikes Hacks 2026*
 
-A React Native iOS mobile app template built with Expo, similar to snack.expo.dev.
+Get out there! 💪 ChallengeU connects UNL students with recreation opportunities, social events, and fitness communities across campus.
 
-## Getting Started
+---
+
+## Quick Start
 
 ### Prerequisites
 - Node.js (v16 or higher)
 - npm or yarn
 - Expo CLI (`npm install -g expo-cli`)
 
-### Installation
+### Installation & Running
 
 1. Clone or download this repository
 2. Install dependencies:
@@ -18,38 +20,63 @@ A React Native iOS mobile app template built with Expo, similar to snack.expo.de
    npm install
    ```
 
-### Running the App
+3. Start the development server:
+   ```bash
+   npm start
+   ```
 
-**For iOS (on macOS):**
-```bash
-npm run ios
-```
+4. Open on your device:
+   - **iOS (on macOS):** `npm run ios`
+   - **Android:** `npm run android`
+   - **Web:** `npm run web`
 
-**For Android:**
-```bash
-npm run android
-```
+---
 
-**For Web:**
-```bash
-npm run web
-```
+## About ChallengeU
 
-**Generic Expo Development Server:**
-```bash
-npm start
-```
+ChallengeU is the all-in-one app for UNL students looking to stay active and connected. Whether you want to hit the gym, join a pickup game, find your next adventure, or connect with club sports teams, ChallengeU makes it easy.
+
+### Features
+
+🏋️ **Real-Time Activity Hub** - Check the live status and busyness of recreation facilities across campus:
+- Rec Center capacity and available equipment
+- Outdoor Adventure Center schedules
+- Sand volleyball courts and tennis court availability
+- Gym busy times
+
+💬 **Social Events Platform** - Start and organize games with other students:
+- Create and discover events (basketball, soccer, hiking, etc.)
+- Built-in calendar integration
+- RSVP and participant tracking
+- Real-time messaging with event organizers and teammates
+
+📊 **Activity Feed & Fitness Tracking** - Stay motivated and social:
+- Share your workouts and activities
+- Sync with popular fitness trackers
+- Follow friends and see what they're up to
+- Celebrate milestones together
+
+🏆 **Club & Intramural Sports** - Find your team:
+- Browse UNL club and intramural sports teams
+- Team schedules and rosters
+- Event information and registration
+- Connect with teammates
+
+---
 
 ## Project Structure
 
 ```
-├── App.js              # Main app component
+├── App.tsx             # Main app component (TypeScript)
 ├── app.json            # Expo configuration
 ├── babel.config.js     # Babel configuration
 ├── package.json        # Dependencies and scripts
 ├── tsconfig.json       # TypeScript configuration
-└── README.md          # This file
+├── assets/             # App icons and images
+└── README.md           # This file
 ```
+
+---
 
 ## Available Scripts
 
@@ -58,16 +85,18 @@ npm start
 - `npm run android` - Build and run on Android emulator
 - `npm run web` - Run on web
 
-## Features
+---
 
-- ✅ React Native with Expo
-- ✅ iOS and Android support
-- ✅ Web support via Expo Web
-- ✅ TypeScript ready
-- ✅ Status bar integration
+## Tech Stack
+
+- **Frontend:** React Native with Expo
+- **Language:** TypeScript (ready)
+- **Platforms:** iOS, Android, Web
+
+---
 
 ## Learn More
 
 - [Expo Documentation](https://docs.expo.dev/)
 - [React Native Documentation](https://reactnative.dev/)
-- [Snack.expo.dev](https://snack.expo.dev/)
+- Questions? Check out [Snack.expo.dev](https://snack.expo.dev/) for quick examples
