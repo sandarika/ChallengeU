@@ -7,14 +7,45 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts } from '@/constants/theme';
+import { addLikedMeetupEvent, removeLikedMeetupEvent } from '@/utils/meetup-calendar-sync';
+
+type MeetupPost = {
+  id: number;
+  sport: string;
+  location: string;
+  time: string;
+  likes: number;
+  liked: boolean;
+  gender: string;
+  postDate: string;
+};
 
 export default function EventsScreen() {
+  const getDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = new Date();
+  const todayKey = getDateKey(today);
+
+  const formatPostDate = (dateKey: string) => {
+    const parsed = new Date(`${dateKey}T00:00:00`);
+    return parsed.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
   // fake social posts
-  const [posts, setPosts] = React.useState(
+  const [posts, setPosts] = React.useState<MeetupPost[]>(
     [
-      { id: 1, sport: 'Basketball', location: 'Rec Center Courts', time: '5:00 PM', likes: 2, liked: false, gender: 'COED' },
-      { id: 2, sport: 'Soccer', location: 'Outdoor Fields', time: '6:30 PM', likes: 5, liked: false, gender: 'Mens' },
-      { id: 3, sport: 'Tennis', location: 'East Campus Courts', time: '4:15 PM', likes: 1, liked: false, gender: 'Womens' },
+      { id: 1, sport: 'Basketball', location: 'Rec Center Courts', time: '5:00 PM', likes: 2, liked: false, gender: 'COED', postDate: todayKey },
+      { id: 2, sport: 'Soccer', location: 'Outdoor Fields', time: '6:30 PM', likes: 5, liked: false, gender: 'Mens', postDate: todayKey },
+      { id: 3, sport: 'Tennis', location: 'East Campus Courts', time: '4:15 PM', likes: 1, liked: false, gender: 'Womens', postDate: todayKey },
     ],
   );
 
@@ -52,7 +83,16 @@ export default function EventsScreen() {
     { label: 'This evening', filters: { time: '5' } },
   ];
 
-  const filteredPosts = posts.filter((p) => {
+  React.useEffect(() => {
+    setPosts((prevPosts) => prevPosts.filter((post) => post.postDate === todayKey));
+  }, [todayKey]);
+
+  const todaysPosts = React.useMemo(
+    () => posts.filter((post) => post.postDate === todayKey),
+    [posts, todayKey],
+  );
+
+  const filteredPosts = todaysPosts.filter((p) => {
     if (sportFilter && p.sport !== sportFilter) return false;
     if (locationFilter && p.location !== locationFilter) return false;
     if (timeFilter && !p.time.includes(timeFilter)) return false;
@@ -65,6 +105,21 @@ export default function EventsScreen() {
       prev.map((p) => {
         if (p.id === id) {
           const liked = !p.liked;
+          if (liked) {
+            const now = new Date();
+            addLikedMeetupEvent({
+              postId: p.id,
+              sport: p.sport,
+              location: p.location,
+              time: p.time,
+              dateKey: getDateKey(now),
+              day: now.getDate(),
+              month: now.getMonth(),
+              year: now.getFullYear(),
+            });
+          } else {
+            removeLikedMeetupEvent(p.id);
+          }
           return { ...p, liked, likes: p.likes + (liked ? 1 : -1) };
         }
         return p;
@@ -85,6 +140,7 @@ export default function EventsScreen() {
       gender: formData.gender,
       likes: 0,
       liked: false,
+      postDate: todayKey,
     };
     setPosts([...posts, newPost]);
     setFormData({ sport: '', location: '', time: '', gender: 'COED' });
@@ -267,6 +323,7 @@ export default function EventsScreen() {
               {sportEmoji[post.sport] ?? '🏅'} {post.sport} - {post.gender}
             </ThemedText>
             <ThemedView style={styles.detailList}>
+              <ThemedText style={styles.detailText}>Date: {formatPostDate(post.postDate)}</ThemedText>
               <ThemedText style={styles.detailText}>Where: {post.location}</ThemedText>
               <ThemedText style={styles.detailText}>When: {post.time}</ThemedText>
             </ThemedView>

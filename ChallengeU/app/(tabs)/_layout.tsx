@@ -5,7 +5,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 // lucide icons
-import { Dumbbell, Calendar, Activity, Users, User } from 'lucide-react-native';
+import { Dumbbell, Calendar, Activity, Trophy, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -42,7 +42,7 @@ export default function TabLayout() {
         name="teams"
         options={{
           title: 'Teams',
-          tabBarIcon: ({ color, size }) => <Users size={size ?? 28} color={color} />,
+          tabBarIcon: ({ color, size }) => <Trophy size={size ?? 28} color={color} />,
         }}
       />
       <Tabs.Screen
