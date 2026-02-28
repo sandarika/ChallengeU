@@ -1,6 +1,7 @@
 import { StyleSheet, View, TextInput, Button } from 'react-native';
 import { useRouter, Redirect } from 'expo-router';
 import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -9,17 +10,28 @@ import { authenticate, isAuthenticated } from '@/utils/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // pre-populate with demo credentials
+  const [email, setEmail] = useState('herbie@nebraska.edu');
+  const [password, setPassword] = useState('password123');
 
   if (isAuthenticated()) {
     return <Redirect href="/" />;
   }
 
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     // stub: replace with real authentication
     authenticate();
+
+    // if using demo account, store a demo student name locally
+    if (email.toLowerCase() === 'herbie@nebraska.edu') {
+      try {
+        await AsyncStorage.setItem('studentName', 'Herbie Husker');
+      } catch (e) {
+        console.warn('Failed to store student name', e);
+      }
+    }
+
     router.replace('/');
   };
 
