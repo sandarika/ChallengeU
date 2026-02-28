@@ -80,7 +80,7 @@ export default function EventsScreen() {
           style={{
             fontFamily: Fonts.rounded,
           }}>
-          Events
+          Meetup
         </ThemedText>
         <Button
           title={showFilters ? 'Hide filters' : 'Show filters'}

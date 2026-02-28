@@ -25,9 +25,9 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="events"
+        name="meetup"
         options={{
-          title: 'Events',
+          title: 'Meetup',
           tabBarIcon: ({ color, size }) => <Calendar size={size ?? 28} color={color} />,
         }}
       />
