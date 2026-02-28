@@ -3,6 +3,8 @@ import WorkoutsController from '../controllers/workouts.controller';
 
 const router = Router();
 
+// Public endpoints - no auth required
+router.options('/', (req, res) => res.sendStatus(200)); // Handle CORS preflight
 router.post('/', (req, res) => WorkoutsController.createWorkout(req, res));
 router.get('/', (req, res) => WorkoutsController.getAllWorkouts(req, res));
 router.get('/:id', (req, res) => WorkoutsController.getWorkoutById(req, res));

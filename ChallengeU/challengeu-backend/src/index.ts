@@ -8,8 +8,13 @@ import { errorHandler } from './middleware/error.middleware';
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Connect to MongoDB
 console.log('Connecting to MongoDB at:', config.database.url);
@@ -37,5 +42,4 @@ const PORT = config.server.port || 5000;
 app.listen(PORT, () => {
     console.log(`✓ Server is running on port ${PORT}`);
     console.log(`  API available at: http://localhost:${PORT}/api/workouts`);
-});
 });

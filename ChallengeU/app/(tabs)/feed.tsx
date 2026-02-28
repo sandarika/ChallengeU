@@ -1,7 +1,8 @@
 import { StyleSheet, FlatList, View, TouchableOpacity, Modal, TextInput, Alert, Platform, Image } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Activity, Heart, Plus } from 'lucide-react-native';
+import { Activity, Heart, Plus, Camera } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -32,7 +33,7 @@ export default function FeedScreen() {
   const [showModal, setShowModal] = useState(false);
   const [username, setUsername] = useState('');
   const [calories, setCalories] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const backgroundColor = useThemeColor({}, 'background');
   const colorScheme = useColorScheme() ?? 'light';
@@ -73,7 +74,24 @@ export default function FeedScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const postWorkout = async () => {
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission denied', 'We need permission to access your photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      setPhotoUri(result.assets[0].uri);
+    }
+  };
+
+  const postWorkout = () => {
     if (!username.trim() || !calories.trim()) {
       Alert.alert('Error', 'Please enter username and calories');
       return;
@@ -85,75 +103,40 @@ export default function FeedScreen() {
       return;
     }
 
-    setPosting(true);
-    try {
-      const base = getBaseUrl();
-      const res = await fetch(`${base}/workouts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: username.trim(),
-          calories: calorieNum,
-          imageUrl: imageUrl.trim() || undefined,
-        }),
-      });
+    // Create new workout object
+    const newWorkout: Workout = {
+      _id: `${Date.now()}`,
+      username: username.trim(),
+      calories: calorieNum,
+      date: new Date().toISOString(),
+      likes: 0,
+      imageUrl: photoUri || undefined,
+    };
 
-      if (res.ok) {
-        Alert.alert('Success', 'Workout posted!');
-        setUsername('');
-        setCalories('');
-        setShowModal(false);
-        fetchWorkouts();
-      } else {
-        Alert.alert('Error', 'Failed to post workout');
-      }
-    } catch (e) {
-      console.error('Post workout error:', e);
-      Alert.alert('Error', `Network error: ${e instanceof Error ? e.message : 'Unknown error'}`);
-    } finally {
-      setPosting(false);
-    }
+    // Add to feed immediately (at the beginning for newest first)
+    setWorkouts([newWorkout, ...workouts]);
+    setFeedState((prev) => ({ ...prev, [newWorkout._id]: { likes: 0, liked: false } }));
+    
+    // Reset form and close modal
+    setUsername('');
+    setCalories('');
+    setPhotoUri(null);
+    setShowModal(false);
   };
 
-  const celebrateWorkout = async (workoutId: string) => {
-    // determine existing state, falling back to known workout or demo count
-    const existing = feedState[workoutId];
-    let state: WorkoutState;
-    if (existing) {
-      state = existing;
-    } else if (workoutId === DEMO_WORKOUT._id) {
-      state = { likes: DEMO_WORKOUT.likes, liked: false };
-    } else {
-      const found = workouts.find((w) => w._id === workoutId);
-      state = { likes: found ? found.likes : 0, liked: false };
-    }
-    const isCelebrated = state.liked;
-    // adjust count for optimistic UI
+  const celebrateWorkout = (workoutId: string) => {
+    // Get current state or initialize it
+    const existing = feedState[workoutId] || { likes: 0, liked: false };
+    const isCelebrated = existing.liked;
+    
+    // Calculate new state
     const newState: WorkoutState = {
-      likes: isCelebrated ? state.likes - 1 : state.likes + 1,
+      likes: isCelebrated ? existing.likes - 1 : existing.likes + 1,
       liked: !isCelebrated,
     };
 
-    // optimistically update
+    // Update state immediately
     setFeedState((prev) => ({ ...prev, [workoutId]: newState }));
-
-    if (workoutId === 'demo-herbie') return;
-
-    try {
-      const base = getBaseUrl();
-      const action = isCelebrated ? 'uncelebrate' : 'celebrate';
-      const res = await fetch(`${base}/workouts/${workoutId}/${action}`, { method: 'POST' });
-      if (res.ok) {
-        const updated = await res.json();
-        setFeedState((prev) => ({ ...prev, [workoutId]: { likes: updated.likes, liked: !isCelebrated } }));
-      } else {
-        // revert on failure
-        setFeedState((prev) => ({ ...prev, [workoutId]: state }));
-      }
-    } catch (e) {
-      console.error('toggle like error', e);
-      setFeedState((prev) => ({ ...prev, [workoutId]: state }));
-    }
   };
 
   const renderItem = ({ item }: { item: Workout }) => {
@@ -194,22 +177,14 @@ export default function FeedScreen() {
       <View style={[styles.header, { backgroundColor: headerBackgroundColor[colorScheme] }]}>
         <Activity size={178} color="#e80e0e" style={styles.headerIcon} />
       </View>
-      <View style={styles.headerTop}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="title">Activity Feed</ThemedText>
-        </ThemedView>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setShowModal(true)}
-        >
-          <Plus size={24} color="#e80e0e" />
-        </TouchableOpacity>
-      </View>
+      <ThemedView style={styles.titleContainer}>
+        <ThemedText type="title">Activity Feed</ThemedText>
+      </ThemedView>
     </View>
   );
 
   return (
-    <ThemedView style={{ flex: 1 }}>
+    <ThemedView style={{ flex: 1, position: 'relative' }}>
       <FlatList
         data={[DEMO_WORKOUT, ...workouts]}
         keyExtractor={(i) => i._id}
@@ -218,6 +193,10 @@ export default function FeedScreen() {
         ListEmptyComponent={<ThemedText style={styles.emptyText}>Users will share workouts and updates here.</ThemedText>}
         contentContainerStyle={workouts.length === 0 ? styles.emptyContainer : undefined}
       />
+
+      <TouchableOpacity style={styles.fab} onPress={() => setShowModal(true)}>
+        <Plus size={28} color="#fff" />
+      </TouchableOpacity>
 
       <Modal
         visible={showModal}
@@ -259,17 +238,22 @@ export default function FeedScreen() {
               />
             </View>
 
-            <View style={styles.formGroup}>
-              <ThemedText style={styles.label}>Image URL (optional)</ThemedText>
-              <TextInput
-                style={styles.input}
-                placeholder="https://example.com/photo.png"
-                placeholderTextColor="#999"
-                value={imageUrl}
-                onChangeText={setImageUrl}
-                editable={!posting}
-              />
-            </View>
+            <ThemedText style={styles.label}>Photo (optional)</ThemedText>
+            <TouchableOpacity style={styles.photoPickerBtn} onPress={pickImage}>
+              {photoUri ? (
+                <Image source={{ uri: photoUri }} style={styles.previewPhoto} />
+              ) : (
+                <View style={styles.photoPickerContent}>
+                  <Camera size={32} color="#e80e0e" />
+                  <ThemedText style={styles.photoPickerText}>Tap to add photo</ThemedText>
+                </View>
+              )}
+            </TouchableOpacity>
+            {photoUri && (
+              <TouchableOpacity onPress={() => setPhotoUri(null)} style={styles.removePhotoBtn}>
+                <ThemedText style={styles.removePhotoText}>Remove photo</ThemedText>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               style={[styles.postBtn, posting && styles.postBtnDisabled]}
@@ -296,11 +280,6 @@ const styles = StyleSheet.create({
     height: 250,
     overflow: 'hidden',
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -311,8 +290,20 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
   },
-  addButton: {
-    padding: 8,
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#e80e0e',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   item: {
     paddingVertical: 16,
@@ -399,6 +390,40 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 14,
     color: '#000',
+  },
+  photoPickerBtn: {
+    borderWidth: 2,
+    borderColor: '#e80e0e',
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    paddingVertical: 32,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  photoPickerContent: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  photoPickerText: {
+    color: '#e80e0e',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  previewPhoto: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+  },
+  removePhotoBtn: {
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  removePhotoText: {
+    color: '#e80e0e',
+    fontSize: 12,
+    fontWeight: '600',
   },
   postBtn: {
     backgroundColor: '#e80e0e',
