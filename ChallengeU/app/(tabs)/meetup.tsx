@@ -7,6 +7,7 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts } from '@/constants/theme';
+import { removeLikedMeetupFromAppleCalendar, syncLikedMeetupToAppleCalendar } from '@/utils/apple-calendar-sync';
 import { addLikedMeetupEvent, removeLikedMeetupEvent } from '@/utils/meetup-calendar-sync';
 
 type MeetupPost = {
@@ -106,19 +107,27 @@ export default function EventsScreen() {
         if (p.id === id) {
           const liked = !p.liked;
           if (liked) {
-            const now = new Date();
-            addLikedMeetupEvent({
+            void syncLikedMeetupToAppleCalendar({
               postId: p.id,
               sport: p.sport,
               location: p.location,
               time: p.time,
-              dateKey: getDateKey(now),
-              day: now.getDate(),
-              month: now.getMonth(),
-              year: now.getFullYear(),
+              dateKey: p.postDate,
+            });
+
+            void addLikedMeetupEvent({
+              postId: p.id,
+              sport: p.sport,
+              location: p.location,
+              time: p.time,
+              dateKey: p.postDate,
+              day: today.getDate(),
+              month: today.getMonth(),
+              year: today.getFullYear(),
             });
           } else {
-            removeLikedMeetupEvent(p.id);
+            void removeLikedMeetupFromAppleCalendar(p.id);
+            void removeLikedMeetupEvent(p.id);
           }
           return { ...p, liked, likes: p.likes + (liked ? 1 : -1) };
         }

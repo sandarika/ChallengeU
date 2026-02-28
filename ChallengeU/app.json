@@ -9,7 +9,12 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "ChallengeU uses your calendar to add liked meetups and joined team games.",
+        "NSCalendarsFullAccessUsageDescription": "ChallengeU uses your calendar to add liked meetups and joined team games.",
+        "NSCalendarsWriteOnlyAccessUsageDescription": "ChallengeU uses your calendar to add liked meetups and joined team games."
+      }
     },
     "android": {
       "adaptiveIcon": {

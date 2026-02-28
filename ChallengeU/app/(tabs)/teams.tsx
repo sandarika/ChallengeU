@@ -6,6 +6,10 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Trophy } from 'lucide-react-native';
+import {
+  removeJoinedTeamGamesFromAppleCalendar,
+  syncJoinedTeamGamesToAppleCalendar,
+} from '@/utils/apple-calendar-sync';
 import { getLikedMeetupEvents, type LikedMeetupEvent } from '@/utils/meetup-calendar-sync';
 
 export default function TeamsScreen() {
@@ -138,17 +142,31 @@ export default function TeamsScreen() {
   };
 
   const handleJoinTeam = (teamName: string) => {
+    const alreadyJoined = myTeams.includes(teamName);
+    if (alreadyJoined) {
+      return;
+    }
+
+    const matchedTeam = intramuralTeams.find((team) => team.name === teamName);
+    const gamesForTeam = teamGames[teamName] ?? [];
+
     setMyTeams((prevTeams) => {
       if (prevTeams.includes(teamName)) {
         return prevTeams;
       }
       return [...prevTeams, teamName];
     });
+
+    if (matchedTeam) {
+      void syncJoinedTeamGamesToAppleCalendar(teamName, matchedTeam.sport, gamesForTeam);
+    }
+
     setIsJoinExpanded(false);
   };
 
   const handleLeaveTeam = (teamName: string) => {
     setMyTeams((prevTeams) => prevTeams.filter((name) => name !== teamName));
+    void removeJoinedTeamGamesFromAppleCalendar(teamName, (teamGames[teamName] ?? []).length);
     setIsJoinExpanded(true);
   };
 
@@ -235,7 +253,7 @@ export default function TeamsScreen() {
             </ThemedView>
           </>
         ) : (
-          <ThemedText style={styles.helperText}>Join a team or like a Meetup post to start filling your game calendar.</ThemedText>
+          <ThemedText style={styles.label}>Join a team or like a Meetup post to start filling your game calendar.</ThemedText>
         )}
       </ThemedView>
 
