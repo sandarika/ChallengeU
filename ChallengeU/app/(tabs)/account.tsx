@@ -16,6 +16,13 @@ import { signOut } from '@/utils/auth';
 
 const HEALTH_SEED_STORAGE_KEY = 'health_seed_steps_imported_feb2026_v1';
 const HEALTH_SEED_STEPS: Array<{ date: string; steps: number }> = require('@/assets/health-seed-steps.json');
+const HERBIE_DEFAULT_NOTIFICATION_SENT_KEY = 'herbie_default_notification_sent_v1';
+const DEFAULT_HERBIE_NOTIFICATION = {
+  id: 'herbie-welcome',
+  title: 'Herbie says hi 👋',
+  body: 'You are all set. Keep checking Account for your latest progress updates.',
+  read: false,
+};
 
 const resolveAppleHealthKit = () => {
   try {
@@ -41,10 +48,12 @@ const resolveAppleHealthKit = () => {
 };
 
 let AppleHealthKit: any = resolveAppleHealthKit();
+let Notifications: any = null;
 
 try {
   // optional module; if unavailable, in-app notifications list still works
-  Notifications = runtimeRequire ? runtimeRequire('expo-notifications') : null;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  Notifications = require('expo-notifications');
 } catch {
   Notifications = null;
 }
