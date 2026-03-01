@@ -8,10 +8,11 @@ Get out there! 💪 ChallengeU connects UNL students with recreation opportuniti
 ## Quick Start
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- **Expo Go app** (download from [App Store](https://apps.apple.com/app/expo-go/id982107779) or [Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent))
+- Node.js (v18 or higher)
+- macOS with Xcode (for iOS builds)
+- CocoaPods (`sudo gem install cocoapods` if not installed)
 
-### Installation & Running
+### Installation
 
 1. Navigate to the ChallengeU folder:
    ```bash
@@ -20,18 +21,45 @@ Get out there! 💪 ChallengeU connects UNL students with recreation opportuniti
 
 2. Install dependencies:
    ```bash
-   npm install -g expo-cli
    npm install
    ```
 
-3. Start the Expo development server:
+### Run as iOS Development Build (recommended)
+
+1. Generate native iOS files:
    ```bash
-   npx expo start --tunnel
+   npx expo prebuild --platform ios
    ```
 
-4. **Using Expo Go (Recommended for Development):**
-   - Open the **Expo Go** app on your iOS or Android device
-   - Scan the QR code displayed in your terminal
+2. Build and install on iOS simulator or connected device:
+   ```bash
+   npx expo run:ios
+   ```
+   Or target a specific simulator/device:
+   ```bash
+   npx expo run:ios --device <SIMULATOR_OR_DEVICE_ID>
+   ```
+
+3. Start Metro for the development client:
+   ```bash
+   lsof -ti :8081 | xargs kill -9 2>/dev/null || true
+   npx expo start --dev-client --host lan --port 8081 --clear
+   ```
+
+4. Open the installed ChallengeU app.
+
+If app does not auto-connect, open by URL:
+```bash
+exp://<YOUR_LOCAL_IP>:8081
+```
+
+### Optional: Expo Go (UI-only)
+
+Some native features (for example Apple Health/Calendar behavior) require a development build.
+
+```bash
+npx expo start
+```
 
 ---
 
