@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Fonts, Colors } from '@/constants/theme';
-import { UserRoundPen, X } from 'lucide-react-native';
+import { Bell, UserRoundPen, X } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 // chart library (run `expo install react-native-chart-kit react-native-svg`)
 // @ts-ignore - types may not be installed in the managed workspace
@@ -15,7 +15,14 @@ import { useRouter } from 'expo-router';
 import { signOut } from '@/utils/auth';
 
 const HERBIE_FRIENDS_KEY = 'herbieFriends';
+const HERBIE_DEFAULT_NOTIFICATION_SENT_KEY = 'herbieDefaultNotificationSent';
 const DEFAULT_HERBIE_FRIENDS = ['Vittoria', 'Lucy'];
+const DEFAULT_HERBIE_NOTIFICATION = {
+  id: 'herbie-default-notification',
+  title: 'Wednesday Workout!',
+  body: 'You typically go to the gym at 5pm on Wednesdays. We predict it will be 30% less busy than usual today!',
+  read: false,
+};
 const FRIEND_PHOTOS: Record<string, string> = {
   Vittoria: 'https://placecats.com/100/100',
   Lucy: 'https://placecats.com/101/101',
@@ -29,16 +36,28 @@ const FRIEND_PHOTOS: Record<string, string> = {
   Judy: 'https://placecats.com/109/109',
 };
 
+const runtimeRequire: ((moduleName: string) => any) | undefined =
+  typeof globalThis !== 'undefined' && typeof (globalThis as { require?: unknown }).require === 'function'
+    ? ((globalThis as { require: (name: string) => any }).require)
+    : undefined;
+
 let AppleHealthKit: any = null;
+let Notifications: any = null;
 try {
   // optional native module; will be undefined in Expo managed without dev client / native install
   // npm: react-native-health (requires native setup and HealthKit entitlement)
   // This file only requests read permissions (no write).
   // If not installed the UI will show not available.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  AppleHealthKit = require('react-native-health');
-} catch (e) {
+  AppleHealthKit = runtimeRequire ? runtimeRequire('react-native-health') : null;
+} catch {
   AppleHealthKit = null;
+}
+
+try {
+  // optional module; if unavailable, in-app notifications list still works
+  Notifications = runtimeRequire ? runtimeRequire('expo-notifications') : null;
+} catch {
+  Notifications = null;
 }
 
 export default function AccountScreen() {
@@ -55,7 +74,10 @@ export default function AccountScreen() {
   const [friendNames, setFriendNames] = useState<string[]>(DEFAULT_HERBIE_FRIENDS);
   const [showFriends, setShowFriends] = useState(false);
   const [showCheckinsModal, setShowCheckinsModal] = useState(false);
+  const [notifications, setNotifications] = useState([DEFAULT_HERBIE_NOTIFICATION]);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const router = useRouter();
+  const unreadNotificationCount = notifications.filter((notification) => !notification.read).length;
 
   const loadFriends = React.useCallback(async () => {
     try {
@@ -88,6 +110,65 @@ export default function AccountScreen() {
       loadFriends();
     }, [loadFriends])
   );
+
+  useEffect(() => {
+    if (!Notifications?.setNotificationHandler) return;
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }, []);
+
+  const openNotifications = () => {
+    setShowNotificationsModal(true);
+    setNotifications((currentNotifications) =>
+      currentNotifications.map((notification) => ({ ...notification, read: true }))
+    );
+  };
+
+  useEffect(() => {
+    const scheduleDefaultNotification = async () => {
+      if (!Notifications?.scheduleNotificationAsync) return;
+      try {
+        const alreadySent = await AsyncStorage.getItem(HERBIE_DEFAULT_NOTIFICATION_SENT_KEY);
+        if (alreadySent) return;
+
+        const currentPermissions = await Notifications.getPermissionsAsync();
+        let finalStatus = currentPermissions.status;
+        if (finalStatus !== 'granted') {
+          const requestResult = await Notifications.requestPermissionsAsync();
+          finalStatus = requestResult.status;
+        }
+        if (finalStatus !== 'granted') return;
+
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.DEFAULT,
+          });
+        }
+
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: DEFAULT_HERBIE_NOTIFICATION.title,
+            body: DEFAULT_HERBIE_NOTIFICATION.body,
+            sound: true,
+          },
+          trigger: null,
+        });
+        await AsyncStorage.setItem(HERBIE_DEFAULT_NOTIFICATION_SENT_KEY, 'true');
+      } catch {
+        // ignore notification setup failures and keep account UI functional
+      }
+    };
+
+    scheduleDefaultNotification();
+  }, []);
 
   const disconnectFromHealth = () => {
     // clear metrics and revert state
@@ -225,6 +306,17 @@ export default function AccountScreen() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
       {/* profile picture centered with padding above */}
       <View style={styles.photoSection}>
+        <TouchableOpacity
+          onPress={openNotifications}
+          style={styles.notificationButton}
+          accessibilityRole="button"
+          accessibilityLabel="Open notifications"
+        >
+          <Bell size={24} color={Colors.light.tint} />
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationBadgeText}>{unreadNotificationCount}</Text>
+          </View>
+        </TouchableOpacity>
         <TouchableOpacity onPress={pickImage} style={styles.photoWrapper}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={styles.photoLarge} />
@@ -282,7 +374,7 @@ export default function AccountScreen() {
         />
       )}
       {stepCount !== null && (
-        <ThemedText style={styles.metric}>Today's steps: {stepCount}</ThemedText>
+        <ThemedText style={styles.metric}>Today&apos;s steps: {stepCount}</ThemedText>
       )}
       {historicalSteps.length > 0 && (
         <LineChart
@@ -306,7 +398,7 @@ export default function AccountScreen() {
         />
       )}
       {distance !== null && (
-        <ThemedText style={styles.metric}>Today's distance: {distance} mi</ThemedText>
+        <ThemedText style={styles.metric}>Today&apos;s distance: {distance} mi</ThemedText>
       )}
       {historicalDistance.length > 0 && (
         <LineChart
@@ -391,6 +483,28 @@ export default function AccountScreen() {
       </View>
     </Modal>
 
+    {/* notifications modal */}
+    <Modal visible={showNotificationsModal} animationType="slide" transparent>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <ThemedText type="title">Notifications</ThemedText>
+            <TouchableOpacity onPress={() => setShowNotificationsModal(false)} style={styles.modalClose}>
+              <X size={24} color={Colors.light.tint} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView>
+            {notifications.map((notification) => (
+              <View key={notification.id} style={styles.notificationItem}>
+                <ThemedText style={styles.valueBold}>{notification.title}</ThemedText>
+                <ThemedText style={styles.notificationBody}>{notification.body}</ThemedText>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+
     </>
   );
 }
@@ -407,6 +521,8 @@ const styles = StyleSheet.create({
   },
   photoSection: {
     marginBottom: 16,
+    alignItems: 'center',
+    position: 'relative',
   },
   title: {
     fontFamily: Fonts.rounded,
@@ -422,7 +538,7 @@ const styles = StyleSheet.create({
   metric: { fontSize: 18, fontWeight: '600', color: '#000', marginBottom: 6 },
   note: { marginTop: 12, fontSize: 12, color: '#666' },
   photoWrapper: {
-    marginRight: 12,
+    marginRight: 0,
   },
   photoLarge: {
     width: 120,
@@ -444,6 +560,39 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderColor: '#ccc',
+  },
+  notificationButton: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    padding: 8,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    backgroundColor: '#e80e0e',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  notificationItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e6e6e6',
+  },
+  notificationBody: {
+    fontSize: 14,
+    color: '#222',
+    marginTop: 4,
   },
   checkinDetails: {
     paddingLeft: 12,
