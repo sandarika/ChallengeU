@@ -14,7 +14,8 @@
         "NSCalendarsUsageDescription": "ChallengeU uses your calendar to add liked meetups and joined team games.",
         "NSCalendarsFullAccessUsageDescription": "ChallengeU uses your calendar to add liked meetups and joined team games.",
         "NSCalendarsWriteOnlyAccessUsageDescription": "ChallengeU uses your calendar to add liked meetups and joined team games."
-      }
+      },
+      "bundleIdentifier": "com.lsalyer.ChallengeU"
     },
     "android": {
       "adaptiveIcon": {
