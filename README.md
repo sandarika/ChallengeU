@@ -24,7 +24,7 @@ Get out there! 💪 ChallengeU connects UNL students with recreation opportuniti
    npm install
    ```
 
-### Run as iOS Development Build (recommended)
+### Run as iOS Development Build (recommended to get Apple Health data for syncing)
 
 1. Generate native iOS files:
    ```bash
@@ -53,7 +53,7 @@ If app does not auto-connect, open by URL:
 exp://<YOUR_LOCAL_IP>:8081
 ```
 
-### Optional: Expo Go (UI-only)
+### Optional: Expo Go (UI-only, no Apple Health integration)
 
 Some native features (for example Apple Health/Calendar behavior) require a development build.
 
