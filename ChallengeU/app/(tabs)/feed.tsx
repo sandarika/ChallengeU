@@ -1,4 +1,4 @@
-import { StyleSheet, View, TouchableOpacity, Modal,FlatList, TextInput, Alert, Platform, Image, ScrollView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Modal, TextInput, Alert, Platform, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -6,8 +6,6 @@ import { Activity, Heart, Plus, Camera, MessageCircle, X } from 'lucide-react-na
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type Comment = {
   _id: string;
@@ -26,13 +24,16 @@ type Workout = {
   comments?: Comment[];
 };
 
+const INITIAL_HERBIE_FRIENDS = ['Vittoria', 'Lucy'];
+const HERBIE_FRIENDS_KEY = 'herbieFriends';
+
 // Demo Herbie Husker post
 const DEMO_WORKOUT: Workout = {
   _id: 'demo-herbie',
   username: 'Vittoria',
   calories: 670,
-  date: new Date().toISOString(),
-  likes: 0,
+  date: new Date('2026-02-28T17:41:00').toISOString(),
+  likes: 5,
   imageUrl: require('../../assets/images/workout0img.png'),
   comments: [
     {
@@ -48,8 +49,8 @@ const DEMO_WORKOUT: Workout = {
  const DEMO_WORKOUT_LUCY: Workout = {
    _id: 'demo-lucy',
    username: 'Lucy',
-   calories: 520,
-   date: new Date(Date.now() - 3600000).toISOString(),
+   calories: 320,
+   date: new Date('2026-02-28T07:14:00').toISOString(),
    likes: 2,
    imageUrl: require('../../assets/images/workout1img.png'),
    comments: [],
@@ -60,7 +61,7 @@ const DEMO_WORKOUT: Workout = {
    _id: 'demo-sandi',
    username: 'Sandi',
    calories: 450,
-   date: new Date(Date.now() - 7200000).toISOString(),
+   date: new Date('2026-02-27T22:23:00').toISOString(),
    likes: 1,
    imageUrl: require('../../assets/images/workout2img.png'),
    comments: [],
@@ -68,7 +69,12 @@ const DEMO_WORKOUT: Workout = {
 
 export default function FeedScreen() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [demoComments, setDemoComments] = useState<Comment[]>(DEMO_WORKOUT.comments || []);
+  const [herbieFriends, setHerbieFriends] = useState<string[]>(INITIAL_HERBIE_FRIENDS);
+  const [demoCommentsByPostId, setDemoCommentsByPostId] = useState<Record<string, Comment[]>>({
+    [DEMO_WORKOUT._id]: DEMO_WORKOUT.comments || [],
+    [DEMO_WORKOUT_LUCY._id]: DEMO_WORKOUT_LUCY.comments || [],
+    [DEMO_WORKOUT_SANDI._id]: DEMO_WORKOUT_SANDI.comments || [],
+  });
   type WorkoutState = { likes: number; liked: boolean };
   const [feedState, setFeedState] = useState<Record<string, WorkoutState>>({});
   const [showModal, setShowModal] = useState(false);
@@ -82,9 +88,7 @@ export default function FeedScreen() {
   const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [commentUsername, setCommentUsername] = useState('');
-  const [commentLikes, setCommentLikes] = useState<Record<string, Record<string, boolean>>>({});
-  const backgroundColor = useThemeColor({}, 'background');
-  const colorScheme = useColorScheme() ?? 'light';
+  const [commentLikes, setCommentLikes] = useState<Record<string, boolean>>({});
   const headerBackgroundColor = { light: '#f4f3ef', dark: '#1D3D47' };
 
   const getBaseUrl = () => {
@@ -140,9 +144,16 @@ export default function FeedScreen() {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem('studentName');
+        const storedFriends = await AsyncStorage.getItem(HERBIE_FRIENDS_KEY);
         if (stored) {
           setUsername(stored);
           setCommentUsername(stored);
+        }
+        if (storedFriends) {
+          const parsed = JSON.parse(storedFriends);
+          if (Array.isArray(parsed) && parsed.every((f) => typeof f === 'string')) {
+            setHerbieFriends(parsed);
+          }
         }
       } catch (e) {
         // ignore
@@ -262,9 +273,12 @@ export default function FeedScreen() {
       likes: 0,
     };
 
-    // Handle demo post separately
-    if (selectedWorkoutId === 'demo-herbie') {
-      setDemoComments([...demoComments, newComment]);
+    // Handle demo posts separately
+    if (selectedWorkoutId in demoCommentsByPostId) {
+      setDemoCommentsByPostId((prev) => ({
+        ...prev,
+        [selectedWorkoutId]: [...(prev[selectedWorkoutId] || []), newComment],
+      }));
     } else {
       // Add comment to regular workout
       setWorkouts((prev) =>
@@ -299,15 +313,16 @@ export default function FeedScreen() {
     const key = `${workoutId}-${commentId}`;
     const isLiked = commentLikes[key];
 
-    // Handle demo post separately
-    if (workoutId === 'demo-herbie') {
-      setDemoComments((prev) =>
-        prev.map((c) =>
+    // Handle demo posts separately
+    if (workoutId in demoCommentsByPostId) {
+      setDemoCommentsByPostId((prev) => ({
+        ...prev,
+        [workoutId]: (prev[workoutId] || []).map((c) =>
           c._id === commentId
             ? { ...c, likes: isLiked ? c.likes - 1 : c.likes + 1 }
             : c
-        )
-      );
+        ),
+      }));
     } else {
       // Update the workout with the new comment likes
       setWorkouts((prev) =>
@@ -333,19 +348,41 @@ export default function FeedScreen() {
     }));
   };
 
+  const isHerbieFriend = (name: string) =>
+    herbieFriends.some((friend) => friend.toLowerCase() === name.toLowerCase());
+
+  const toggleHerbieFriend = (name: string) => {
+    setHerbieFriends((prev) => {
+      const isExisting = prev.some((friend) => friend.toLowerCase() === name.toLowerCase());
+      const next = isExisting
+        ? prev.filter((friend) => friend.toLowerCase() !== name.toLowerCase())
+        : [...prev, name];
+      AsyncStorage.setItem(HERBIE_FRIENDS_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
   const renderItem = ({ item }: { item: Workout }) => {
     const date = new Date(item.date);
     const itemState = feedState[item._id] || { likes: item.likes, liked: false };
     const likes = itemState.likes;
     const isCelebrated = itemState.liked;
-    // For demo post, use demoComments state; for others, use item comments
-    const comments = item._id === 'demo-herbie' ? demoComments : item.comments || [];
+    const isFriend = isHerbieFriend(item.username);
+    // For demo posts, use local demo comment state; for others, use item comments
+    const comments = item._id in demoCommentsByPostId
+      ? demoCommentsByPostId[item._id] || []
+      : item.comments || [];
     return (
       <ThemedView style={styles.item}>
         {item.imageUrl && (
           <Image source={typeof item.imageUrl === 'string' ? { uri: item.imageUrl } : item.imageUrl} style={styles.workoutImage} />
         )}
         <ThemedText type="subtitle">{item.username} completed a workout!</ThemedText>
+        <TouchableOpacity onPress={() => toggleHerbieFriend(item.username)}>
+          <ThemedText style={[styles.friendStatusText, !isFriend && styles.addFriendText]}>
+            {isFriend ? 'Your Friend' : 'Add Friend'}
+          </ThemedText>
+        </TouchableOpacity>
         <View style={styles.row}>
           <ThemedText>{item.calories} Calories</ThemedText>
           <ThemedText style={styles.date}>{date.toLocaleString()}</ThemedText>
@@ -356,14 +393,14 @@ export default function FeedScreen() {
             onPress={() => celebrateWorkout(item._id)}
           >
             <Heart
-              size={18}
+              size={14}
               color="#e80e0e"
               fill={isCelebrated ? '#e80e0e' : 'none'}
             />
-            <ThemedText style={styles.celebrateText}>
+            <ThemedText numberOfLines={1} style={styles.celebrateText}>
               {isCelebrated ? 'Celebrated' : 'Celebrate'}
             </ThemedText>
-            <ThemedText style={styles.likeCount}>{likes}</ThemedText>
+            <ThemedText numberOfLines={1} style={styles.likeCount}>{likes}</ThemedText>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.commentBtn}
@@ -378,27 +415,25 @@ export default function FeedScreen() {
     );
   };
 
-  const HeaderComponent = () => (
-    <View style={[styles.headerContainer, { backgroundColor }]}>
-      <View style={[styles.header, { backgroundColor: headerBackgroundColor[colorScheme] }]}>
-        <Activity size={178} color="#e80e0e" style={styles.headerIcon} />
-      </View>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Activity Feed</ThemedText>
-      </ThemedView>
-    </View>
-  );
+  const feedItems = [...workouts, DEMO_WORKOUT, DEMO_WORKOUT_LUCY, DEMO_WORKOUT_SANDI];
 
   return (
     <ThemedView style={{ flex: 1, position: 'relative' }}>
-      <FlatList
-          data={[...workouts, DEMO_WORKOUT, DEMO_WORKOUT_LUCY, DEMO_WORKOUT_SANDI]}
-        keyExtractor={(i) => i._id}
-        renderItem={renderItem}
-        ListHeaderComponent={<HeaderComponent />}
-        ListEmptyComponent={<ThemedText style={styles.emptyText}>Users will share workouts and updates here.</ThemedText>}
-        contentContainerStyle={workouts.length === 0 ? styles.emptyContainer : undefined}
-      />
+      <ParallaxScrollView
+        headerBackgroundColor={headerBackgroundColor}
+        headerImage={<Activity size={178} color="#e80e0e" style={styles.headerIcon} />}
+      >
+        <ThemedView style={styles.titleContainer}>
+          <ThemedText type="title">Activity Feed</ThemedText>
+        </ThemedView>
+        <View style={styles.feedListContainer}>
+          {feedItems.length === 0 ? (
+            <ThemedText style={styles.emptyText}>Users will share workouts and updates here.</ThemedText>
+          ) : (
+            feedItems.map((item) => <View key={item._id}>{renderItem({ item })}</View>)
+          )}
+        </View>
+      </ParallaxScrollView>
 
           <TouchableOpacity style={styles.fab} onPress={openPostModal}>
         <Plus size={28} color="#fff" />
@@ -491,9 +526,9 @@ export default function FeedScreen() {
 
             <ScrollView style={styles.commentsList}>
               {selectedWorkoutId && (() => {
-                // Get comments from either demo post or regular post
-                const comments = selectedWorkoutId === 'demo-herbie' 
-                  ? demoComments 
+                // Get comments from either demo posts or regular posts
+                const comments = selectedWorkoutId in demoCommentsByPostId
+                  ? demoCommentsByPostId[selectedWorkoutId] || []
                   : workouts.find(w => w._id === selectedWorkoutId)?.comments || [];
                 
                 return comments.map((comment) => {
@@ -556,14 +591,6 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    padding: 32,
-    gap: 16,
-  },
-  header: {
-    height: 250,
-    overflow: 'hidden',
-  },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -633,11 +660,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#e80e0e',
   },
-  emptyContainer: {
-    paddingTop: 16,
-  },
   emptyText: {
     padding: 32,
+  },
+  feedListContainer: {
+    marginHorizontal: -32,
   },
   modalContainer: {
     flex: 1,
@@ -747,6 +774,16 @@ const styles = StyleSheet.create({
   commentCount: {
     fontSize: 14,
     fontWeight: '700',
+    color: '#e80e0e',
+  },
+  friendStatusText: {
+    marginTop: 6,
+    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+  },
+  addFriendText: {
     color: '#e80e0e',
   },
   commentsPreview: {

@@ -5,8 +5,9 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "generate:capacity-data": "node ./scripts/generate-capacity-data.js",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },
