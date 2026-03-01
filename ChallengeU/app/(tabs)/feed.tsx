@@ -1,4 +1,4 @@
-import { StyleSheet, View, TouchableOpacity, Modal,FlatList, TextInput, Alert, Platform, Image, ScrollView } from 'react-native';
+import { StyleSheet, View, TouchableOpacity, Modal, TextInput, Alert, Platform, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -6,8 +6,6 @@ import { Activity, Heart, Plus, Camera, MessageCircle, X } from 'lucide-react-na
 import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useThemeColor } from '@/hooks/use-theme-color';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 type Comment = {
   _id: string;
@@ -91,8 +89,6 @@ export default function FeedScreen() {
   const [commentText, setCommentText] = useState('');
   const [commentUsername, setCommentUsername] = useState('');
   const [commentLikes, setCommentLikes] = useState<Record<string, boolean>>({});
-  const backgroundColor = useThemeColor({}, 'background');
-  const colorScheme = useColorScheme() ?? 'light';
   const headerBackgroundColor = { light: '#f4f3ef', dark: '#1D3D47' };
 
   const getBaseUrl = () => {
@@ -419,27 +415,25 @@ export default function FeedScreen() {
     );
   };
 
-  const HeaderComponent = () => (
-    <View style={[styles.headerContainer, { backgroundColor }]}>
-      <View style={[styles.header, { backgroundColor: headerBackgroundColor[colorScheme] }]}>
-        <Activity size={178} color="#e80e0e" style={styles.headerIcon} />
-      </View>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Activity Feed</ThemedText>
-      </ThemedView>
-    </View>
-  );
+  const feedItems = [...workouts, DEMO_WORKOUT, DEMO_WORKOUT_LUCY, DEMO_WORKOUT_SANDI];
 
   return (
     <ThemedView style={{ flex: 1, position: 'relative' }}>
-      <FlatList
-          data={[...workouts, DEMO_WORKOUT, DEMO_WORKOUT_LUCY, DEMO_WORKOUT_SANDI]}
-        keyExtractor={(i) => i._id}
-        renderItem={renderItem}
-        ListHeaderComponent={<HeaderComponent />}
-        ListEmptyComponent={<ThemedText style={styles.emptyText}>Users will share workouts and updates here.</ThemedText>}
-        contentContainerStyle={workouts.length === 0 ? styles.emptyContainer : undefined}
-      />
+      <ParallaxScrollView
+        headerBackgroundColor={headerBackgroundColor}
+        headerImage={<Activity size={178} color="#e80e0e" style={styles.headerIcon} />}
+      >
+        <ThemedView style={styles.titleContainer}>
+          <ThemedText type="title">Activity Feed</ThemedText>
+        </ThemedView>
+        <View style={styles.feedListContainer}>
+          {feedItems.length === 0 ? (
+            <ThemedText style={styles.emptyText}>Users will share workouts and updates here.</ThemedText>
+          ) : (
+            feedItems.map((item) => <View key={item._id}>{renderItem({ item })}</View>)
+          )}
+        </View>
+      </ParallaxScrollView>
 
           <TouchableOpacity style={styles.fab} onPress={openPostModal}>
         <Plus size={28} color="#fff" />
@@ -597,14 +591,6 @@ export default function FeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    padding: 32,
-    gap: 16,
-  },
-  header: {
-    height: 250,
-    overflow: 'hidden',
-  },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -674,11 +660,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#e80e0e',
   },
-  emptyContainer: {
-    paddingTop: 16,
-  },
   emptyText: {
     padding: 32,
+  },
+  feedListContainer: {
+    marginHorizontal: -32,
   },
   modalContainer: {
     flex: 1,
