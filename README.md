@@ -37,7 +37,7 @@ Get out there! 💪 ChallengeU connects UNL students with recreation opportuniti
    ```
    Or target a specific simulator/device:
    ```bash
-   npx expo run:ios --device <SIMULATOR_OR_DEVICE_ID>
+   npx expo run:ios --device 
    ```
 
 3. Start Metro for the development client:
